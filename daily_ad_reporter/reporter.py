@@ -66,9 +66,7 @@ def send_slack(text):
         "Content-Type": "application/json",
     }
     payload = {"channel": SLACK_CHANNEL_ID, "text": text}
-    response = requests.post(url, data=json.dumps(payload), headers=headers)
-    response.raise_for_status()  # Raise an exception for bad status codes
-    print(response.json())  # Print the JSON response from Slack
+    requests.post(url, data=json.dumps(payload), headers=headers)
 
 
 if __name__ == "__main__":
