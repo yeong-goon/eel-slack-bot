@@ -1,0 +1,3 @@
+facebook-business
+python-dotenv
+requests

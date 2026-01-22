@@ -1,0 +1,8 @@
+pandas
+numpy
+gspread
+gspread_dataframe
+selenium
+webdriver-manager
+slack_sdk
+openpyxl

@@ -1,0 +1,38 @@
+name: Run Coupang Recommender
+
+on:
+  # 외부(슬랙/Make)에서 신호를 보낼 때 실행
+  repository_dispatch:
+    types: [run-recommendation]
+  # 수동 실행 버튼
+  workflow_dispatch:
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install Dependencies
+        run: |
+          pip install -r coupang_requirements.txt
+
+      # [중요] 구글 인증 파일 생성 (Secret -> credentials.json)
+      - name: Create Credentials
+        run: |
+          echo '${{ secrets.SPREADSHEETCREDENTIALS_JSON }}' > coupang_stock_recommender/credentials.json
+
+      # 파이썬 실행
+      - name: Run Script
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          # 물류/재고 채널 ID (없으면 기본값으로 전송됨)
+          TARGET_CHANNEL: ${{ secrets.SLACK_CHANNEL_LOGISTICS }}
+        run: python coupang_stock_recommender/run_recommender.py
