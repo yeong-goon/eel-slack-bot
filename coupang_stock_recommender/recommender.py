@@ -619,11 +619,10 @@ def calculate_coupang_transfer_recommendations(
 
     df_sorted = df_recommendations.sort_values(
         by=[
-            COL_GROUP_URGENCY_METRIC,
-            COL_PRODUCT_GROUP,
             COL_COUPANG_STOCK_DEPLETION_DAYS,
+            COL_TRANSFER_RECOMMENDATION,
         ],
-        ascending=[False, True, True],
+        ascending=[True, False],
     )
 
     # 포맷팅

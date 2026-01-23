@@ -94,17 +94,25 @@ def main():
                 "No products currently require shipment to Coupang (stock is sufficient)."
             )
         else:
-            # Create a summary message with the top 5 recommendations
-            top_5 = df_reco.head(5)
-            msg = "📦 *Coupang Shipment Recommendations (Top 5)*\n"
-            msg += "Please see the attached Excel file for the full list.\n\n"
+            # Count products with stock depletion days between 0 and 5
+            urgent_mask = (df_reco['쿠팡_재고소진_예상일'] >= 0) & (df_reco['쿠팡_재고소진_예상일'] <= 5)
+            urgent_count = urgent_mask.sum()
 
+            # Create a new summary message
+            msg = f"📦 *Coupang Shipment Recommendations*\n"
+            msg += f"🚨 Urgent products (0-5 days to stockout): *{urgent_count}* items\n"
+            msg += "Please see the attached Excel file for the full list.\n\n"
+            msg += "*Top 5 Urgent Products:*\n"
+
+            # List the top 5 most urgent products
+            top_5 = df_reco.head(5)
             for _, row in top_5.iterrows():
                 quantity = int(row['추천입고수량'])
                 product_name = str(row['상품명'])
+                depletion_days = int(row['쿠팡_재고소진_예상일'])
                 if len(product_name) > 15:
                     product_name = product_name[:15] + "..."
-                msg += f"• *{product_name}*: {quantity} units\n"
+                msg += f"• *{product_name}*: {quantity} units (Est. stockout in {depletion_days} days)\n"
 
             # Save the full recommendation list to an Excel file
             excel_path = os.path.join(script_dir, "recommendation_result.xlsx")
