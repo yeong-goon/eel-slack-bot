@@ -143,3 +143,8 @@ config.json
 secrets/
 *.key
 *.pem
+
+# Custom Ignores for this project
+*.xlsx
+.claude/
+coupang_stock_recommender/downloads/
