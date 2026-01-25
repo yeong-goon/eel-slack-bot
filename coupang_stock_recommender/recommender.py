@@ -13,7 +13,7 @@ COL_SALES_7D_OWN = "최근7일_자사몰스토어_판매량"
 COL_DIRECT_SALES_30D_COUPANG = "쿠팡_30일_순수판매량"  # [추가]
 
 # 결과 컬럼
-COL_TRANSFER_RECOMMENDATION = "추천입고수량"
+COL_TRANSFER_RECOMMENDATION = "입고수량"
 COL_AVG_DAILY_SALES_COUPANG = "쿠팡_일평균_판매량"
 COL_REQUIRED_STOCK_COUPANG = "쿠팡_필요재고"
 COL_COUPANG_STOCK_DEPLETION_DAYS = "쿠팡_재고소진_예상일"
@@ -86,7 +86,7 @@ def calculate_coupang_transfer_recommendations(
     df = df_final.copy()
 
     # 0. 전처리
-    df[COL_PRODUCT_GROUP] = df[COL_SKU].str.split('_').str[:2].str.join('_')
+    df[COL_PRODUCT_GROUP] = df[COL_SKU].str.split("_").str[:2].str.join("_")
 
     # NaN 처리
     cols_to_fill = [
@@ -151,9 +151,9 @@ def calculate_coupang_transfer_recommendations(
         )
 
     # --- 2. BOM(세트) 구조 파싱 ---
-    # SKU -> Set/Component 관계 매핑
-    # bom_map: Set SKU -> [(Comp SKU, Qty), ...]
-    # comp_usage_map: Comp SKU -> [Set SKU, ...]
+    # SKU -> 세트/구성품 관계 매핑
+    # bom_map: 세트 SKU -> [(구성품 SKU, 수량), ...]
+    # comp_usage_map: 구성품 SKU -> [세트 SKU, ...]
     bom_map = {}
     comp_usage_map = {}
 
@@ -194,7 +194,7 @@ def calculate_coupang_transfer_recommendations(
 
     for _, row in df.iterrows():
         sku = row[COL_SKU]
-        is_sweep = sweep_mask[row.name]  # row.name is index
+        is_sweep = sweep_mask[row.name]  # row.name은 인덱스입니다
         is_defense_needed = not (is_coupang_only[row.name] or is_discontinued[row.name])
 
         # 초기 상태 설정
@@ -241,7 +241,7 @@ def calculate_coupang_transfer_recommendations(
 
             # A. 세트 상품
             if sku in bom_map:
-                # 구성품들의 여유 재고 확인 (가장 적은 놈 기준)
+                # 구성품들의 여유 재고 확인 (가장 적은 것을 기준으로)
                 max_set_possible = float("inf")
                 for comp_sku, qty in bom_map[sku]:
                     if comp_sku not in sim_state:
@@ -277,7 +277,7 @@ def calculate_coupang_transfer_recommendations(
                 avail = max(0, state["main_stock"] - defense)
                 allocatable = avail
 
-            # 최종 할당 (필요량과 가능량 중 작은 값)
+            # 최종 할당 (필요량과 가능량 중 더 작은 값)
             alloc = min(needed, allocatable)
 
             if alloc > 0:
@@ -322,8 +322,8 @@ def calculate_coupang_transfer_recommendations(
                 daily_needs[sku] = shortage
 
         # 2. 메인 창고 재고 확인 및 할당 (구성품 단위로 집계)
-        # 구성품별로 금일 총 소요량(Total Drain) 계산
-        # Drain = (자사몰 방어분) + (본인 쿠팡 부족분) + (자신을 쓰는 세트들의 부족분)
+        # 구성품별 금일 총 소요량(Total Drain) 계산
+        # 소요량 = (자사몰 방어분) + (해당 SKU의 쿠팡 부족분) + (해당 SKU를 사용하는 세트들의 부족분)
 
         comp_drain = {}  # Comp SKU -> Total Drain Amount
 
@@ -352,36 +352,36 @@ def calculate_coupang_transfer_recommendations(
                 comp_drain[sku] = comp_drain.get(sku, 0.0) + state["daily_own"]
 
         # 3. 메인 재고 차감 및 가능 여부 판단
-        # 이번 Day를 버틸 수 없는 구성품 식별
+        # 금일 재고를 감당할 수 없는 구성품 식별
         failed_comps = set()
 
         for comp_sku, drain in comp_drain.items():
             if comp_sku not in sim_state:
                 continue
 
-            # [수정] 부분 할당(Partial Allocation) 지원을 위한 비율 계산
-            # 재고가 충분하면 ratio = 1.0, 부족하면 ratio < 1.0
+            # [수정] 부분 할당(Partial Allocation)을 지원하기 위한 비율 계산
+            # 재고가 충분하면 비율 = 1.0, 부족하면 비율 < 1.0
             if sim_state[comp_sku]["main_stock"] >= drain:
                 sim_state[comp_sku]["main_stock"] -= drain
                 # ratio는 기본적으로 1.0 (생략 가능하지만 로직 통일을 위해)
             else:
-                # 재고가 부족해도 남은 만큼은 털어넣음
-                # 단, drain이 0인 경우는 없다고 가정 (위에서 체크함)
+                # 재고가 부족해도 남은 양은 모두 할당
+                # 단, 소요량(drain)이 0인 경우는 없다고 가정 (위에서 확인)
                 ratio = sim_state[comp_sku]["main_stock"] / drain if drain > 0 else 0
 
-                # 해당 구성품을 사용하는 모든 SKU에 대해 공급 비율 제한
-                # (이 구성품이 병목이 됨)
+                # 이 구성품을 사용하는 모든 SKU에 대해 공급 비율 제한
+                # (이 구성품이 병목 지점이 됨)
                 failed_comps.add(comp_sku)
 
                 # 메인 재고 소진 처리
                 sim_state[comp_sku]["main_stock"] = 0.0
                 sim_state[comp_sku]["is_exhausted"] = True  # 향후 시뮬레이션 제외
 
-                # 이 구성품의 부족 비율을 기록해두었다가 아래 할당 단계에서 적용해야 함
-                # 하지만 구조상 아래 루프에서 SKU별로 어떤 구성품이 부족한지 다시 확인해야 함.
+                # 이 구성품의 부족 비율을 기록해 두었다가 아래 할당 단계에서 적용해야 함
+                # 하지만 현재 구조상 아래 루프에서 SKU별로 어떤 구성품이 부족한지 다시 확인해야 합니다.
 
-        # 4. 입고 추천 수량 확정 (Transfer Update)
-        # 실패한 구성품을 사용하는 모든 SKU는 이번 Day의 입고 추천을 받을 수 없음
+        # 4. 입고 추천 수량 확정 (전송 업데이트)
+        # 실패한 구성품을 사용하는 모든 SKU는 금일 입고 추천을 받을 수 없음
 
         for sku, need in daily_needs.items():
             if need <= 0:
@@ -411,19 +411,19 @@ def calculate_coupang_transfer_recommendations(
                         # 정확한 부분 할당을 위해서는 로직 재구성이 필요함.
                         pass
 
-            # [로직 개선] 부분 할당을 제대로 구현하기 위해 3번과 4번 과정을 통합하거나
-            # supply_ratio를 명시적으로 계산하도록 변경
+            # [로직 개선] 부분 할당을 올바르게 구현하려면 3번과 4번 과정을 통합하거나
+            # 공급 비율(supply_ratio)을 명시적으로 계산하도록 변경
 
-            # 현재 구조 유지하면서 부분 할당 효과를 내기 위해:
-            # "실패했더라도(failed_comps), 이번 턴에 한해서는 남은 재고 비율만큼 할당"
+            # 현재 구조를 유지하면서 부분 할당 효과를 내기 위해:
+            # "실패했더라도(failed_comps), 이번 차례에 한해 남은 재고 비율만큼 할당"
             # 하지만 여러 구성품이 동시에 부족하면 최소 비율을 따라야 함.
 
-            # 복잡도를 줄이기 위해, 기존 로직(All or Nothing)을 유지하되
-            # [수정 2] 최종 결과 변환 시 int() 대신 round()를 사용하여 소수점 손실을 줄임.
+            # 복잡도를 줄이기 위해 기존의 '전부 아니면 전무(All or Nothing)' 로직을 유지하되
+            # [수정 2] 최종 결과를 변환할 때 int() 대신 round()를 사용하여 소수점 손실을 줄임.
             # 부분 할당 없이도 round()만으로 7 -> 8 문제가 해결될 가능성이 높음.
-            # (3.6 + 4.4 = 8.0 인데 int하면 3+4=7, round하면 4+4=8)
+            # (예: 3.6 + 4.4 = 8.0 이지만, int()를 사용하면 3+4=7, round()를 사용하면 4+4=8)
 
-            # 따라서 우선 round() 적용만으로 해결 시도.
+            # 따라서 우선 round() 적용만으로 해결을 시도.
 
             can_supply = True
             if sku in bom_map:
@@ -439,10 +439,10 @@ def calculate_coupang_transfer_recommendations(
             if can_supply:
                 sim_state[sku]["transfer_qty"] += need
             else:
-                # [추가] 실패한 날, 그냥 0으로 끝내지 않고 남은 재고 비율만큼이라도 할당 (Partial Fill)
-                # 이를 위해선 각 구성품의 잔여 재고 비율을 알아야 함.
-                # 현재 코드 구조상 복잡하므로, 우선 round() 적용을 먼저 수행.
-                # 이번 Day 공급 실패 -> 향후 시뮬레이션에서도 제외 (균형 유지를 위해)
+                # [추가] 실패한 날, 0으로 끝내지 않고 남은 재고 비율만큼이라도 할당 (부분 채우기)
+                # 이를 위해서는 각 구성품의 잔여 재고 비율을 알아야 함.
+                # 현재 코드 구조가 복잡하므로, 우선 round() 적용을 먼저 수행.
+                # 금일 공급 실패 -> 향후 시뮬레이션에서도 제외 (균형 유지를 위해)
                 sim_state[sku]["is_exhausted"] = True
 
     # --- 4.5. [추가] 자사몰 최소 보존 수량(2개) 최종 강제 적용 ---
@@ -576,7 +576,7 @@ def calculate_coupang_transfer_recommendations(
         df[COL_AVG_DAILY_SALES_COUPANG] * MAX_DAYS,
     )
 
-    # --- 4. 결과 정리 및 지표 계산 ---
+    # --- 5. 결과 정리 및 지표 계산 ---
     df_recommendations = df[df[COL_TRANSFER_RECOMMENDATION] > 0].copy()
 
     # 재고 소진 예상일 및 예상 손실 수량 계산
@@ -610,9 +610,7 @@ def calculate_coupang_transfer_recommendations(
         COL_COUPANG_STOCK_DEPLETION_DAYS,
         COL_STOCK_COUPANG,
         COL_STOCK_MAIN,
-        # COL_AVG_DAILY_SALES_COUPANG, # 요청으로 제외
-        # COL_REQUIRED_STOCK_COUPANG,  # 요청으로 제외
-        # COL_REQUIRED_STOCK_OWN,      # 요청으로 제외
+        COL_AVG_DAILY_SALES_COUPANG,
     ]
 
     final_cols = [col for col in result_cols if col in df_recommendations.columns]

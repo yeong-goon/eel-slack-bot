@@ -1,4 +1,4 @@
-name: Run Coupang Recommender
+name: 쿠팡 재고 추천 실행
 
 on:
   # 외부(슬랙/Make)에서 신호를 보낼 때 실행
@@ -12,27 +12,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 코드 체크아웃
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Python 설치
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
-      - name: Install Dependencies
+      - name: 의존성 설치
         run: |
           pip install -r coupang_requirements.txt
 
       # [중요] 구글 인증 파일 생성 (Secret -> credentials.json)
-      - name: Create Credentials
+      - name: 인증 파일 생성
         run: |
           echo '${{ secrets.SPREADSHEETCREDENTIALS_JSON }}' > coupang_stock_recommender/credentials.json
 
       # 파이썬 실행
-      - name: Run Script
+      - name: 스크립트 실행
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           # 물류/재고 채널 ID (없으면 기본값으로 전송됨)
           TARGET_CHANNEL: ${{ secrets.SLACK_CHANNEL_ROCKETGROWTH }}
-        run: python coupang_stock_recommender/run_recommender.py
+        run: python coupang_stock_recommender/run_recommender_slack.py

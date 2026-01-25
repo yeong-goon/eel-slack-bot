@@ -1,4 +1,4 @@
-name: Daily Facebook Ad Report
+name: 페이스북 광고 일일 리포트
 
 on:
   schedule:
@@ -11,19 +11,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 코드 체크아웃
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Python 설치
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
-      - name: Install Dependencies
+      - name: 의존성 설치
         run: |
           pip install -r ads_requirements.txt
 
-      - name: Run reporter
+      - name: 리포터 실행
         env:
           FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
           FB_AD_ACCOUNT_ID: ${{ secrets.FB_AD_ACCOUNT_ID }}

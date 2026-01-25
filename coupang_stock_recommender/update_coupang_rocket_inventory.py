@@ -16,7 +16,7 @@ import subprocess
 import re
 import glob
 
-# --- Configuration ---
+# --- 설정 ---
 COUPANG_LOGIN_URL = "https://wing.coupang.com/"
 COUPANG_INVENTORY_URL = "https://wing.coupang.com/tenants/rfm-inventory/management/list"
 GOOGLE_SHEET_NAME = "로켓그로스_입고_발주_수량_관리시트_이이엘타임즈"
@@ -24,20 +24,21 @@ TARGET_WORKSHEET_NAME = "로켓그로스재고(매번입력)"
 
 # 스크립트의 현재 위치를 기준으로 경로 설정
 script_dir = os.path.dirname(os.path.abspath(__file__))
-GSPREAD_CREDS_PATH = os.path.join(script_dir, "credentials", "vocal-airline-291707-6cb22418b6f6.json")
+GSPREAD_CREDS_PATH = os.path.join(
+    script_dir, "credentials", "vocal-airline-291707-6cb22418b6f6.json"
+)
 DOWNLOAD_DIR = os.path.join(
-    "coupang_stock_recommender", "downloads" 
-)  # Use a specific downloads folder
-ANALYSIS_SCRIPT_PATH = os.path.join("coupang_stock_recommender", "run_recommender.py")
+    "coupang_stock_recommender", "downloads" # 특정 다운로드 폴더 사용
+)
 
 
 def get_coupang_credentials():
-    """Returns Coupang credentials."""
+    """쿠팡 접속 정보를 반환합니다."""
     return "spnteam", "1108ad^^"
 
 
 def setup_webdriver(download_dir):
-    """Sets up Chrome WebDriver with a custom download directory."""
+    """사용자 지정 다운로드 디렉토리로 Chrome WebDriver를 설정합니다."""
     options = webdriver.ChromeOptions()
     options.add_experimental_option(
         "prefs",
@@ -48,7 +49,7 @@ def setup_webdriver(download_dir):
             "plugins.always_open_pdf_externally": True,
         },
     )
-    # options.add_argument("--headless") # Run in headless mode
+    # options.add_argument("--headless") # 헤드리스 모드로 실행
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
 
@@ -59,8 +60,8 @@ def setup_webdriver(download_dir):
 
 def download_latest_inventory_file(driver, username, password):
     """
-    Logs into Coupang Wing, navigates to inventory, and downloads the latest Excel file.
-    Returns the path to the downloaded file.
+    쿠팡 Wing에 로그인하고, 재고 관리 페이지로 이동하여 최신 Excel 파일을 다운로드합니다.
+    다운로드된 파일의 경로를 반환합니다.
     """
     print("🚀 쿠팡 Wing 로그인 및 파일 다운로드 시작...")
 
@@ -68,13 +69,13 @@ def download_latest_inventory_file(driver, username, password):
     driver.get(COUPANG_LOGIN_URL)
     WebDriverWait(driver, 60).until(
         EC.presence_of_element_located((By.ID, "username"))
-    )  # Wait for login page to load
+    )  # 로그인 페이지가 로드될 때까지 대기
 
     driver.find_element(By.ID, "username").send_keys(username)
     driver.find_element(By.ID, "password").send_keys(password)
     driver.find_element(By.ID, "kc-login").click()
 
-    # Wait for successful login (redirect to dashboard or specific URL)
+    # 로그인 성공 대기 (대시보드 또는 특정 URL로 리디렉션)
     try:
         WebDriverWait(driver, 60).until(
             EC.presence_of_element_located((By.CLASS_NAME, "my-user-menu-name"))
@@ -107,7 +108,9 @@ def download_latest_inventory_file(driver, username, password):
     # 3. '엑셀 다운로드' 버튼 클릭 (Javascript 클릭으로 우회)
     excel_button_xpath = "//button[contains(@class, 'wing-web-component black') and contains(., '엑셀 다운로드')]"
     # 버튼이 클릭 가능할 때까지 명시적으로 대기합니다.
-    excel_button = WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, excel_button_xpath)))
+    excel_button = WebDriverWait(driver, 60).until(
+        EC.element_to_be_clickable((By.XPATH, excel_button_xpath))
+    )
     # Javascript를 사용하여 클릭합니다.
     driver.execute_script("arguments[0].click();", excel_button)
     print("클릭: '엑셀 다운로드'")
@@ -115,7 +118,7 @@ def download_latest_inventory_file(driver, username, password):
     # 4. '엑셀 다운로드 요청' 버튼 클릭
     # 팝업 대기 및 버튼 클릭
     try:
-        request_button_xpath = "//*[@id=\"inventory-management-main-container\"]/section[1]/div[1]/div[2]/div[6]/div[1]/div/div[1]"
+        request_button_xpath = '//*[@id="inventory-management-main-container"]/section[1]/div[1]/div[2]/div[6]/div[1]/div/div[1]'
         request_button = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, request_button_xpath))
         )
@@ -138,15 +141,15 @@ def download_latest_inventory_file(driver, username, password):
         os.remove(f)
 
     # 폴링하여 다운로드 완료 확인
-    while time.time() - start_time < 300:  # Max 5 minutes wait
+    while time.time() - start_time < 300:  # 최대 5분 대기
         try:
             # '새로고침' 버튼 클릭
-            refresh_button_xpath = "//*[@id=\"inventory-management-main-container\"]/section[1]/div[1]/div[2]/div[6]/div[2]/div[1]/div[2]/div/div[1]/button"
+            refresh_button_xpath = '//*[@id="inventory-management-main-container"]/section[1]/div[1]/div[2]/div[6]/div[2]/div[1]/div[2]/div/div[1]/button'
             refresh_button = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, refresh_button_xpath))
             )
             driver.execute_script("arguments[0].click();", refresh_button)
-            
+
             # 다운로드 목록 테이블이 로드될 때까지 대기
             table_xpath = "//table//tbody"
             WebDriverWait(driver, 10).until(
@@ -157,15 +160,17 @@ def download_latest_inventory_file(driver, username, password):
 
             if rows:
                 latest_row = rows[0]
-                
+
                 # 1. 파일 이름 파싱 (세 번째 <td> 요소)
                 file_name_element = latest_row.find_element(By.XPATH, ".//td[3]")
-                file_name_match = re.search(r"inventory_health_sku_info_\d{14}\.xlsx", file_name_element.text)
+                file_name_match = re.search(
+                    r"inventory_health_sku_info_\d{14}\.xlsx", file_name_element.text
+                )
 
                 if file_name_match:
                     target_file_name = file_name_match.group(0)
                     expected_file_path = os.path.join(DOWNLOAD_DIR, target_file_name)
-                    
+
                     # 2. 파일이 이미 다운로드되었는지 확인
                     if os.path.exists(expected_file_path):
                         print(f"✅ 파일이 이미 존재합니다: {expected_file_path}")
@@ -175,9 +180,13 @@ def download_latest_inventory_file(driver, username, password):
                     # 3. 파일이 없다면 다운로드 버튼 클릭 시도
                     print(f"파일 '{target_file_name}' 다운로드 시도...")
                     try:
-                        download_button_xpath_absolute = "//*[@id=\"inventory-management-main-container\"]/section[1]/div[1]/div[2]/div[6]/div[2]/div[1]/div[2]/div/div[2]/table/tbody/tr[1]/td[4]/div/button"
-                        download_button = WebDriverWait(driver, 2).until( # Use a short wait
-                            EC.presence_of_element_located((By.XPATH, download_button_xpath_absolute))
+                        download_button_xpath_absolute = '//*[@id="inventory-management-main-container"]/section[1]/div[1]/div[2]/div[6]/div[2]/div[1]/div[2]/div/div[2]/table/tbody/tr[1]/td[4]/div/button'
+                        download_button = WebDriverWait(
+                            driver, 2
+                        ).until(
+                            EC.presence_of_element_located(
+                                (By.XPATH, download_button_xpath_absolute)
+                            )
                         )
                         driver.execute_script("arguments[0].click();", download_button)
                         print(f"클릭 시도: '{target_file_name}' 다운로드 버튼")
@@ -186,26 +195,26 @@ def download_latest_inventory_file(driver, username, password):
                         pass
                 else:
                     print("파일 이름을 파싱할 수 없습니다.")
-            
+
             time.sleep(5)  # 다음 새로고침 전 대기
         except Exception as e:
             print(f"폴링 중 오류 발생: {e}")
-            time.sleep(5) # 오류 발생 시에도 잠시 대기 후 재시도
+            time.sleep(5)  # 오류 발생 시에도 잠시 대기 후 재시도
 
     if not downloaded_file_path:
         # 최종적으로 파일이 다운로드되었는지 한 번 더 확인
         # 루프가 타임아웃으로 종료되었지만, 마지막 클릭 시도로 파일이 다운로드되었을 수 있음
-        if 'target_file_name' in locals() and os.path.exists(expected_file_path):
-             downloaded_file_path = expected_file_path
+        if "target_file_name" in locals() and os.path.exists(expected_file_path):
+            downloaded_file_path = expected_file_path
         else:
-             print("❌ 최신 인벤토리 파일을 다운로드하지 못했습니다.")
+            print("❌ 최신 인벤토리 파일을 다운로드하지 못했습니다.")
 
     return downloaded_file_path
 
 
 def upload_to_google_sheet(file_path):
     """
-    Reads an Excel file and uploads its content to a specific Google Sheet worksheet.
+    Excel 파일을 읽어 특정 Google Sheet 워크시트에 내용을 업로드합니다.
     """
     print(f"\n📁 '{os.path.basename(file_path)}' 파일을 Google Sheet에 업로드 중...")
     try:
@@ -217,13 +226,13 @@ def upload_to_google_sheet(file_path):
         df_excel = pd.read_excel(file_path)
 
         # 2. 기존 시트 내용 삭제 (첫 행 헤더는 남겨두기)
-        # worksheet.clear() # clear()는 모든 것을 지우므로 사용하지 않음
-        # instead, delete rows from 2nd row to end
+        # worksheet.clear() # clear()는 모든 내용을 삭제하므로 사용하지 않습니다.
+        # 대신, 2번째 행부터 끝까지 삭제합니다.
         if worksheet.row_count > 1:
             worksheet.delete_rows(2, worksheet.row_count)
 
         # 3. 데이터 업로드
-        # 헤더를 다시 쓰지 않도록 start_row=2로 설정
+        # 헤더를 포함하여 데이터프레임을 업로드합니다.
         set_with_dataframe(
             worksheet,
             df_excel,
@@ -238,36 +247,6 @@ def upload_to_google_sheet(file_path):
         return True
     except Exception as e:
         print(f"❌ Google Sheet 업로드 중 오류 발생: {e}")
-        return False
-
-
-def run_analysis_script():
-    """Executes the analysis script."""
-    print(f"\n🔬 분석 스크립트 '{ANALYSIS_SCRIPT_PATH}' 실행 중...")
-    try:
-        # Use the virtual environment's python interpreter
-        result = subprocess.run(
-            [os.path.join(".venv", "bin", "python"), ANALYSIS_SCRIPT_PATH],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        print("✅ 분석 스크립트 실행 완료.")
-        print("\n--- 분석 스크립트 출력 ---")
-        print(result.stdout)
-        if result.stderr:
-            print("--- 분석 스크립트 에러 출력 ---")
-            print(result.stderr)
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ 분석 스크립트 실행 중 오류 발생: {e}")
-        print("--- 분석 스크립트 에러 출력 ---")
-        print(e.stderr)
-        return False
-    except FileNotFoundError:
-        print(
-            f"❌ 분석 스크립트 '{ANALYSIS_SCRIPT_PATH}'를 찾을 수 없습니다. 경로를 확인해주세요."
-        )
         return False
 
 
@@ -289,8 +268,7 @@ def main():
             driver.quit()
 
     if downloaded_file_path:
-        if upload_to_google_sheet(downloaded_file_path):
-            run_analysis_script()
+        upload_to_google_sheet(downloaded_file_path)
 
         # 5. 다운로드된 파일 정리
         try:
