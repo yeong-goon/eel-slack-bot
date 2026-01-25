@@ -34,5 +34,5 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           # 물류/재고 채널 ID (없으면 기본값으로 전송됨)
-          TARGET_CHANNEL: ${{ secrets.SLACK_CHANNEL_LOGISTICS }}
+          TARGET_CHANNEL: ${{ secrets.SLACK_CHANNEL_ROCKETGROWTH }}
         run: python coupang_stock_recommender/run_recommender.py
