@@ -28,7 +28,7 @@ GSPREAD_CREDS_PATH = os.path.join(
     script_dir, "credentials", "vocal-airline-291707-6cb22418b6f6.json"
 )
 DOWNLOAD_DIR = os.path.join(
-    "coupang_stock_recommender", "downloads" # 특정 다운로드 폴더 사용
+    "coupang_stock_recommender", "downloads"  # 특정 다운로드 폴더 사용
 )
 
 
@@ -181,9 +181,7 @@ def download_latest_inventory_file(driver, username, password):
                     print(f"파일 '{target_file_name}' 다운로드 시도...")
                     try:
                         download_button_xpath_absolute = '//*[@id="inventory-management-main-container"]/section[1]/div[1]/div[2]/div[6]/div[2]/div[1]/div[2]/div/div[2]/table/tbody/tr[1]/td[4]/div/button'
-                        download_button = WebDriverWait(
-                            driver, 2
-                        ).until(
+                        download_button = WebDriverWait(driver, 2).until(
                             EC.presence_of_element_located(
                                 (By.XPATH, download_button_xpath_absolute)
                             )

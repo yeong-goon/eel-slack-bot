@@ -376,24 +376,54 @@ def process_data(df_inventory, df_rocket, df_sales, df_bom):
     # --- 5. 최종 데이터 정제 ---
     # NaN 값을 0으로 채우고, 단품 판매량과 세트에서 분배된 판매량을 합산합니다.
     # [추가] 합산하기 전에 쿠팡 순수 판매량을 별도 컬럼으로 보존합니다 (입고 추천 시 단품 과다 입고 방지용)
-    df_final[COL_DIRECT_SALES_30D_COUPANG] = df_final.get(
-        COL_SALES_30D_COUPANG, 0
-    ).fillna(0)
+    df_final[COL_DIRECT_SALES_30D_COUPANG] = (
+        df_final[COL_SALES_30D_COUPANG].fillna(0)
+        if COL_SALES_30D_COUPANG in df_final.columns
+        else 0
+    )
 
-    df_final[COL_SALES_30D_COUPANG] = df_final.get(COL_SALES_30D_COUPANG, 0).fillna(
-        0
-    ) + df_final.get(COL_TEMP_DIST_SALES_COUPANG, 0).fillna(0)
-    df_final[COL_SALES_30D_OWN] = df_final.get(COL_SALES_30D_OWN, 0).fillna(
-        0
-    ) + df_final.get(COL_TEMP_DIST_SALES_OWN, 0).fillna(0)
+    col_sales_30d_coupang = (
+        df_final[COL_SALES_30D_COUPANG].fillna(0)
+        if COL_SALES_30D_COUPANG in df_final.columns
+        else 0
+    )
+    col_temp_dist_sales_coupang = (
+        df_final[COL_TEMP_DIST_SALES_COUPANG].fillna(0)
+        if COL_TEMP_DIST_SALES_COUPANG in df_final.columns
+        else 0
+    )
+    df_final[COL_SALES_30D_COUPANG] = (
+        col_sales_30d_coupang + col_temp_dist_sales_coupang
+    )
+
+    col_sales_30d_own = (
+        df_final[COL_SALES_30D_OWN].fillna(0)
+        if COL_SALES_30D_OWN in df_final.columns
+        else 0
+    )
+    col_temp_dist_sales_own = (
+        df_final[COL_TEMP_DIST_SALES_OWN].fillna(0)
+        if COL_TEMP_DIST_SALES_OWN in df_final.columns
+        else 0
+    )
+    df_final[COL_SALES_30D_OWN] = col_sales_30d_own + col_temp_dist_sales_own
 
     # [추가] 30일 및 7일 전체 판매량 컬럼 생성
     df_final[COL_SALES_30D_TOTAL] = df_final.get(COL_SALES_30D_OWN, 0) + df_final.get(
         COL_SALES_30D_COUPANG, 0
     )
-    df_final[COL_SALES_7D_TOTAL] = df_final.get(COL_SALES_7D_OWN, 0).fillna(
-        0
-    ) + df_final.get(COL_SALES_7D_COUPANG, 0).fillna(0)
+
+    col_sales_7d_own = (
+        df_final[COL_SALES_7D_OWN].fillna(0)
+        if COL_SALES_7D_OWN in df_final.columns
+        else 0
+    )
+    col_sales_7d_coupang = (
+        df_final[COL_SALES_7D_COUPANG].fillna(0)
+        if COL_SALES_7D_COUPANG in df_final.columns
+        else 0
+    )
+    df_final[COL_SALES_7D_TOTAL] = col_sales_7d_own + col_sales_7d_coupang
 
     # 병합 과정에서 생긴 다른 숫자 컬럼들의 NaN(결측치) 값을 0으로 채웁니다.
     # 예를 들어, 쿠팡에만 있는 상품은 '메인창고_재고'가 NaN일 수 있으므로 0으로 변경합니다.
