@@ -106,16 +106,35 @@ def main():
         df_export.to_excel(excel_path, index=False)
         print(f"전체 추천 목록 저장 완료: {excel_path}")
 
-        # 2. 일일 작업 목록 저장 (입고수량 누적 합계 160개까지)
+        # 2. 일일 작업 목록 저장 (입고수량 누적 합계 160개까지, 마지막 제품은 10개 이상일 경우 분할 입고)
         # 정렬 기준: 재고 0개 우선, 그 다음 재고 소진 예상일 (오름차순)
-        df_daily = df_reco.copy()
-        df_daily["_is_zero_stock"] = (df_daily["쿠팡재고"] == 0).astype(int)
-        df_daily = df_daily.sort_values(
+        df_for_daily = df_reco.copy()
+        df_for_daily["_is_zero_stock"] = (df_for_daily["쿠팡재고"] == 0).astype(int)
+        df_for_daily = df_for_daily.sort_values(
             by=["_is_zero_stock", "쿠팡_재고소진_예상일", "쿠팡_일평균_판매량"],
             ascending=[False, True, False],
         ).reset_index(drop=True)
-        df_daily["_cumsum"] = df_daily["입고수량"].cumsum()
-        df_daily = df_daily[df_daily["_cumsum"] <= DAILY_WORK_QTY_LIMIT].copy()
+
+        daily_list = []
+        total_qty = 0
+        MINIMUM_PARTIAL_QTY = 10
+
+        for _, row in df_for_daily.iterrows():
+            item_qty = row["입고수량"]
+            if total_qty + item_qty <= DAILY_WORK_QTY_LIMIT:
+                daily_list.append(row)
+                total_qty += item_qty
+            else:
+                remaining_qty = DAILY_WORK_QTY_LIMIT - total_qty
+                if remaining_qty >= MINIMUM_PARTIAL_QTY:
+                    last_item = row.copy()
+                    last_item["입고수량"] = remaining_qty
+                    daily_list.append(last_item)
+                break
+        
+        df_daily = pd.DataFrame(daily_list)
+        if not df_daily.empty:
+            df_daily = df_daily.reset_index(drop=True)
 
         # 목록 확정 후 "긴급" 열 추가
         # 조건: 재고 소진 예상일 < 7일 또는 재고 <= 1개
