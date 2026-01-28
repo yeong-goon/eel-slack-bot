@@ -92,9 +92,7 @@ def main():
         )
 
         if df_reco.empty:
-            send_slack_notification(
-                "현재 쿠팡으로 배송할 상품이 없습니다 (재고 충분)."
-            )
+            send_slack_notification("현재 쿠팡으로 배송할 상품이 없습니다 (재고 충분)")
         else:
             # 쿠팡재고 = 0 (즉시 품절)인 상품 필터링
             stockout_mask = df_reco["쿠팡재고"] == 0
